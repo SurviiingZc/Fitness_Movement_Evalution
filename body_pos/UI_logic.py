@@ -37,24 +37,41 @@ class MainWin(QMainWindow, Ui_MainWindow):
         self.frame_rate_calc = 1
         self.freq = cv2.getTickFrequency()
 
+        #输入组数和次数
+        self.set_groups = self.group_input.text()
+        self.set_times = self.times_input.text()
         # 初始化计数器
         self.counter = 0
+        #初始化项目名称
+        self.now_name = " "
+        #初始化得分
+        self.score = 0
         #初始化命令标志
         self.order = 0
 
     def Back(self):
         self.order = 0
-        self.video = 0
+        self.counter = 0
+        self.name_show.setText("   请选择项目")
+        self.name_show.setTextColor(QtGui.QColor(79, 190, 255))
+        self.count_show.setText("           0")
+        self.count_show.setTextColor(QtGui.QColor(252, 106, 106))
+        self.score_now_show.setText("           0")
+        self.score_now_show.setTextColor(QtGui.QColor(252, 106, 106))
 
     def Video_Change(self, type):
         if (type == "Shoulder_Push"):
             video = "video\Shoulder_Push.mp4"
+            self.now_name = "哑铃推肩"
         elif (type == "Flying_Bird"):
             video = "video\Flying_Bird.mp4"
+            self.now_name = "哑铃飞鸟"
         elif (type == "Bend"):
             video = "video/bend.mp4"
+            self.now_name = " 二头弯举"
         elif (type == "Squat"):
             video = "video\squat.mp4"
+            self.now_name = "    深蹲"
          # 打开摄像头
         self.cap = cv2.VideoCapture(video)
 
@@ -71,8 +88,8 @@ class MainWin(QMainWindow, Ui_MainWindow):
                 break
             # 获取图像帧的尺寸
             imH, imW, _ = np.shape(img)
-            # 适当缩放
-            img = cv2.resize(img, (int(330), int(600)))
+            # 设置视频大小
+            img = cv2.resize(img, (int(500), int(1000)))
             # 获取图像帧的尺寸
             imH, imW, _ = np.shape(img)
             # BGR 转RGB
@@ -130,39 +147,39 @@ class MainWin(QMainWindow, Ui_MainWindow):
             if score > 0.5:
                 # 标记关键点
                 for point in keypoints:
-                    cv2.circle(img, (point[0], point[1]), 5, (255, 255, 0), 5)
+                    cv2.circle(img, (point[0], point[1]), 3, (255, 0,255), 2)
 
                 # 画关节连接线
                 # 左臂
-                cv2.polylines(img, [np.array([keypoints[5], keypoints[7], keypoints[9]])], False, (0, 255, 0), 3)
+                cv2.polylines(img, [np.array([keypoints[5], keypoints[7], keypoints[9]])], False, (0,255,0), 2)
                 # # 右臂
-                cv2.polylines(img, [np.array([keypoints[6], keypoints[8], keypoints[10]])], False, (0, 0, 255), 3)
+                cv2.polylines(img, [np.array([keypoints[6], keypoints[8], keypoints[10]])], False, (255,144,0), 2)
                 # # 左腿
-                cv2.polylines(img, [np.array([keypoints[11], keypoints[13], keypoints[15]])], False, (0, 255, 0), 3)
+                cv2.polylines(img, [np.array([keypoints[11], keypoints[13], keypoints[15]])], False, (0,255,0), 2)
                 # # 右腿
-                cv2.polylines(img, [np.array([keypoints[12], keypoints[14], keypoints[16]])], False, (0, 255, 255), 3)
+                cv2.polylines(img, [np.array([keypoints[12], keypoints[14], keypoints[16]])], False, (255,144,0), 2)
                 # 身体部分
                 cv2.polylines(img, [np.array([keypoints[5], keypoints[6], keypoints[12], keypoints[11], keypoints[5]])],
-                              False, (255, 255, 0), 3)
+                              False, (0,255,255), 2)
 
-                # 更新计数器
-                self.counter += Counter.train_counter(keypoints, type)
-
-            # 显示计数
-            cv2.putText(img, 'Counter: %d ' % self.counter, (imW - 350, imH - 20),
-                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+            # 更新评估面板
+            self.counter += Counter.train_counter(keypoints, type)
+            self.name_show.setText("    %s" % self.now_name)
+            self.name_show.setTextColor(QtGui.QColor(79, 190, 255))
+            self.count_show.setText("           %d" % self.counter)
+            self.count_show.setTextColor(QtGui.QColor(252, 106, 106))
+            self.score_now_show.setText("           %d" % self.score)
+            self.score_now_show.setTextColor(QtGui.QColor(252, 106, 106))
 
             # 显示帧率
-            cv2.putText(img, 'FPS: %.2f score:%.2f' % (self.frame_rate_calc, score), (imW - 350, imH - 50),
-                        cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 2, cv2.LINE_AA)
+            cv2.putText(img, 'FPS: %.2f        Score:%.2f' % (self.frame_rate_calc, score), (0, 980),
+                        cv2.FONT_HERSHEY_TRIPLEX, 1, (200, 0, 50), 1, cv2.LINE_AA)
 
             #将视频转到GUI界面输出
             img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
             frame = QtGui.QImage(img, img.shape[1], img.shape[0], img.strides[0], QtGui.QImage.Format_RGB888)
             self.label.setScaledContents(True)
             self.label.setPixmap(QtGui.QPixmap(frame))
-            # # 显示结果
-            # cv2.imshow('Pos', img)
 
             # 计算帧率
             t2 = cv2.getTickCount()
