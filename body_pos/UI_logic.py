@@ -4,8 +4,9 @@ import tflite_runtime.interpreter as tflite
 from PyQt5 import QtGui
 from PyQt5.QtWidgets import QMainWindow
 from GUI import Ui_MainWindow
-import Counter
+from Counter import Evaluate
 
+evaluate = Evaluate()
 
 class MainWin(QMainWindow, Ui_MainWindow):
     def __init__(self, parent=None):
@@ -21,6 +22,7 @@ class MainWin(QMainWindow, Ui_MainWindow):
         self.squat.clicked.connect(lambda : self.Model_Process("Squat"))
         self.bend.clicked.connect(lambda : self.Model_Process("Bend"))
         self.back.clicked.connect(self.Back)
+        self.skip.clicked.connect(self.Skip_group)
     def Model_init(self):
         # 检测模型
         file_model = "posenet_mobilenet_v1_100_257x257_multi_kpt_stripped.tflite"
@@ -37,23 +39,26 @@ class MainWin(QMainWindow, Ui_MainWindow):
         self.frame_rate_calc = 1
         self.freq = cv2.getTickFrequency()
 
-        #输入组数和次数
-        self.set_groups = self.group_input.text()
-        self.set_times = self.times_input.text()
         # 初始化计数器
         self.counter = 0
+        self.groups = 0
         #初始化项目名称
-        self.now_name = " "
+        self.now_name = "请选择项目"
         #初始化得分
         self.score = 0
         #初始化命令标志
         self.order = 0
 
     def Back(self):
+        #计数器和评估开始标志
         self.order = 0
         self.counter = 0
+
+        #评估界面更新
         self.name_show.setText("   请选择项目")
         self.name_show.setTextColor(QtGui.QColor(79, 190, 255))
+        self.groups_show.setText("           0")
+        self.groups_show.setTextColor(QtGui.QColor(252, 106, 106))
         self.count_show.setText("           0")
         self.count_show.setTextColor(QtGui.QColor(252, 106, 106))
         self.score_now_show.setText("           0")
@@ -75,10 +80,46 @@ class MainWin(QMainWindow, Ui_MainWindow):
          # 打开摄像头
         self.cap = cv2.VideoCapture(video)
 
+    def UI_update(self, keypoints, type):
+        # 输入组数和次数
+        groups = self.group_input.text()
+        if len(groups) == 0:
+            self.set_groups = 3
+        else:
+            self.set_groups = int(groups)
+
+        times = self.times_input.text()
+        if len(times) == 0:
+            self.set_times = 12
+        else:
+            self.set_times = int(times)
+
+        if self.counter == self.set_times:
+            self.groups += 1
+            self.counter = 0
+
+        evaluate.Angle_calc(keypoints)
+        self.counter += evaluate.Evaluate_update(type)
+        self.score = evaluate.score[1]
+
+        self.name_show.setText("    %s" % self.now_name)
+        self.name_show.setTextColor(QtGui.QColor(79, 190, 255))
+        self.groups_show.setText("           %d" % self.groups)
+        self.groups_show.setTextColor(QtGui.QColor(252, 106, 106))
+        self.count_show.setText("           %d" % self.counter)
+        self.count_show.setTextColor(QtGui.QColor(252, 106, 106))
+        self.score_now_show.setText("         %.2f" % self.score)
+        self.score_now_show.setTextColor(QtGui.QColor(252, 106, 106))
+
+    def Skip_group(self):
+        self.groups += 1
+        self.counter = 0
+
     def Model_Process(self, type):
         self.Model_init()
         self.Video_Change(type)
         self.order = 1
+
         while(self.order):
             # 获取起始时间
             t1 = cv2.getTickCount()
@@ -162,14 +203,10 @@ class MainWin(QMainWindow, Ui_MainWindow):
                 cv2.polylines(img, [np.array([keypoints[5], keypoints[6], keypoints[12], keypoints[11], keypoints[5]])],
                               False, (0,255,255), 2)
 
-            # 更新评估面板
-            self.counter += Counter.train_counter(keypoints, type)
-            self.name_show.setText("    %s" % self.now_name)
-            self.name_show.setTextColor(QtGui.QColor(79, 190, 255))
-            self.count_show.setText("           %d" % self.counter)
-            self.count_show.setTextColor(QtGui.QColor(252, 106, 106))
-            self.score_now_show.setText("           %d" % self.score)
-            self.score_now_show.setTextColor(QtGui.QColor(252, 106, 106))
+                #UI更新
+                # self.counter += Counter.train_counter(keypoints, type)
+
+                self.UI_update(keypoints, type)
 
             # 显示帧率
             cv2.putText(img, 'FPS: %.2f        Score:%.2f' % (self.frame_rate_calc, score), (0, 980),
