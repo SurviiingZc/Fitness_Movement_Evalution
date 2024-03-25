@@ -14,7 +14,7 @@ class MainWin(QMainWindow, Ui_MainWindow):
         self.setupUi(self)
         self.Model_init()
         self.SetConnect()
-
+        self.Score_init()
     def SetConnect(self):
         # 绑定槽函数
         self.shoulder_push.clicked.connect(lambda : self.Model_Process("Shoulder_Push"))
@@ -39,20 +39,27 @@ class MainWin(QMainWindow, Ui_MainWindow):
         self.frame_rate_calc = 1
         self.freq = cv2.getTickFrequency()
 
-        # 初始化计数器
-        self.counter = 0
-        self.groups = 0
-        #初始化项目名称
-        self.now_name = "请选择项目"
-        #初始化得分
-        self.score = 0
-        #初始化命令标志
-        self.order = 0
+        self.Back()
+
+    def Score_init(self):
+        #在返回和切换动作时不清零
+        self.score_shoulder_show.setText("         0.00")
+        self.score_shoulder_show.setTextColor(QtGui.QColor(252, 106, 106))
+        self.score_arm_show.setText("         0.00")
+        self.score_arm_show.setTextColor(QtGui.QColor(252, 106, 106))
+        self.score_leg_show.setText("         0.00")
+        self.score_leg_show.setTextColor(QtGui.QColor(252, 106, 106))
+        self.score_final_show.setText("         0.00")
+        self.score_final_show.setTextColor(QtGui.QColor(252, 106, 106))
 
     def Back(self):
         #计数器和评估开始标志
         self.order = 0
+        #计数与评估初始化
         self.counter = 0
+        self.score = 0.00
+        self.now_name = "请选择项目"
+        self.groups = 0
 
         #评估界面更新
         self.name_show.setText("   请选择项目")
@@ -61,7 +68,7 @@ class MainWin(QMainWindow, Ui_MainWindow):
         self.groups_show.setTextColor(QtGui.QColor(252, 106, 106))
         self.count_show.setText("           0")
         self.count_show.setTextColor(QtGui.QColor(252, 106, 106))
-        self.score_now_show.setText("           0")
+        self.score_now_show.setText("         0.00")
         self.score_now_show.setTextColor(QtGui.QColor(252, 106, 106))
 
     def Video_Change(self, type):
@@ -94,13 +101,14 @@ class MainWin(QMainWindow, Ui_MainWindow):
         else:
             self.set_times = int(times)
 
-        if self.counter == self.set_times:
-            self.groups += 1
-            self.counter = 0
-
         evaluate.Angle_calc(keypoints)
         self.counter += evaluate.Evaluate_update(type)
         self.score = evaluate.score[1]
+
+        if (self.counter == self.set_times and evaluate.flag):
+            self.groups += 1
+            evaluate.Score_shoulder(self.counter, self.set_times, self.set_groups)
+            self.counter = 0
 
         self.name_show.setText("    %s" % self.now_name)
         self.name_show.setTextColor(QtGui.QColor(79, 190, 255))
@@ -110,15 +118,20 @@ class MainWin(QMainWindow, Ui_MainWindow):
         self.count_show.setTextColor(QtGui.QColor(252, 106, 106))
         self.score_now_show.setText("         %.2f" % self.score)
         self.score_now_show.setTextColor(QtGui.QColor(252, 106, 106))
+        self.score_shoulder_show.setText("         %.2f" % evaluate.score_shoulder)
+        self.score_shoulder_show.setTextColor(QtGui.QColor(252, 106, 106))
 
     def Skip_group(self):
         self.groups += 1
+        evaluate.Score_shoulder(self.counter, self.set_times, self.set_groups)
         self.counter = 0
 
     def Model_Process(self, type):
         self.Model_init()
         self.Video_Change(type)
         self.order = 1
+        #中途切换组时sum_score清零
+        evaluate.sum_score = 0
 
         while(self.order):
             # 获取起始时间
