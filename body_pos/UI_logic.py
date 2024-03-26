@@ -14,6 +14,8 @@ class MainWin(QMainWindow, Ui_MainWindow):
         self.setupUi(self)
         self.Model_init()
         self.SetConnect()
+        # 重复两次才有颜色
+        self.Score_init()
         self.Score_init()
     def SetConnect(self):
         # 绑定槽函数
@@ -23,6 +25,9 @@ class MainWin(QMainWindow, Ui_MainWindow):
         self.bend.clicked.connect(lambda : self.Model_Process("Bend"))
         self.back.clicked.connect(self.Back)
         self.skip.clicked.connect(self.Skip_group)
+        self.clear.clicked.connect(self.Clear_score)
+        self.end.clicked.connect(self.Train_finish)
+
     def Model_init(self):
         # 检测模型
         file_model = "posenet_mobilenet_v1_100_257x257_multi_kpt_stripped.tflite"
@@ -38,7 +43,8 @@ class MainWin(QMainWindow, Ui_MainWindow):
         # 初始化帧率计算
         self.frame_rate_calc = 1
         self.freq = cv2.getTickFrequency()
-
+        #重复两次才有颜色
+        self.Back()
         self.Back()
 
     def Score_init(self):
@@ -56,6 +62,7 @@ class MainWin(QMainWindow, Ui_MainWindow):
         #计数器和评估开始标志
         self.order = 0
         #计数与评估初始化
+        self.body_part = ""
         self.counter = 0
         self.score = 0.00
         self.now_name = "请选择项目"
@@ -75,15 +82,19 @@ class MainWin(QMainWindow, Ui_MainWindow):
         if (type == "Shoulder_Push"):
             video = "video\Shoulder_Push.mp4"
             self.now_name = "哑铃推肩"
+            self.body_part = "肩部"
         elif (type == "Flying_Bird"):
             video = "video\Flying_Bird.mp4"
             self.now_name = "哑铃飞鸟"
+            self.body_part = "肩部"
         elif (type == "Bend"):
             video = "video/bend.mp4"
             self.now_name = " 二头弯举"
+            self.body_part = "手臂"
         elif (type == "Squat"):
             video = "video\squat.mp4"
             self.now_name = "    深蹲"
+            self.body_part = "腿部"
          # 打开摄像头
         self.cap = cv2.VideoCapture(video)
 
@@ -107,7 +118,7 @@ class MainWin(QMainWindow, Ui_MainWindow):
 
         if (self.counter == self.set_times and evaluate.flag):
             self.groups += 1
-            evaluate.Score_shoulder(self.counter, self.set_times, self.set_groups)
+            evaluate.Score_part(self.counter, self.set_times, self.set_groups, self.body_part)
             self.counter = 0
 
         self.name_show.setText("    %s" % self.now_name)
@@ -120,11 +131,29 @@ class MainWin(QMainWindow, Ui_MainWindow):
         self.score_now_show.setTextColor(QtGui.QColor(252, 106, 106))
         self.score_shoulder_show.setText("         %.2f" % evaluate.score_shoulder)
         self.score_shoulder_show.setTextColor(QtGui.QColor(252, 106, 106))
+        self.score_arm_show.setText("         %.2f" % evaluate.score_arm)
+        self.score_arm_show.setTextColor(QtGui.QColor(252, 106, 106))
+        self.score_leg_show.setText("         %.2f" % evaluate.score_leg)
+        self.score_leg_show.setTextColor(QtGui.QColor(252, 106, 106))
+
 
     def Skip_group(self):
         self.groups += 1
-        evaluate.Score_shoulder(self.counter, self.set_times, self.set_groups)
+        evaluate.Score_part(self.counter, self.set_times, self.set_groups, self.body_part)
         self.counter = 0
+
+    def Clear_score(self):
+        evaluate.score_shoulder = 0
+        evaluate.score_arm = 0
+        evaluate.score_leg = 0
+        evaluate.score_final = 0
+        self.Score_init()
+
+    def Train_finish(self):
+        self.Back()
+        evaluate.score_final = (evaluate.score_shoulder + evaluate.score_arm + evaluate.score_leg) / 3
+        self.score_final_show.setText("         %.2f" % evaluate.score_final)
+        self.score_final_show.setTextColor(QtGui.QColor(252, 106, 106))
 
     def Model_Process(self, type):
         self.Model_init()
