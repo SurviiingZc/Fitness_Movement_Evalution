@@ -149,11 +149,12 @@ class Evaluate():
             self.score[0] = self.angle_left_knee
         self. score[1] = 100 - (-20 - self. score[0]) * (4/5)
 
-    def Score_shoulder(self, counter, set_counter,  set_group):
+    def Score_part(self, counter, set_counter,  set_group, part):
         goal = set_counter / 2
         score = 0
-
-        if(counter <= goal):
+        if counter == 0:
+            return
+        elif(counter <= goal):
              score = 40
         else:
             score = 40 + (counter - goal) * 60 / goal
@@ -161,8 +162,14 @@ class Evaluate():
         score = score/100
         #调制因子乘该组平均分得到该组得分
         score = score * (self.sum_score/ counter)
-        #肩部得分
-        self.score_shoulder  += score / set_group / 2
+        #部位得分
+        score = score / set_group / 2
+        if(part == "肩部"):
+            self.score_shoulder  += score
+        elif(part == "手臂"):
+            self.score_arm += score
+        elif(part == "腿部"):
+            self.score_leg += score
         #下一组的新sum_score
         self.sum_score = 0
 
